@@ -1,6 +1,6 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import CodeEditor from "../components/editor/CodeEditor";
 import EditorToolbar from "../components/editor/EditorToolbar";
 import Terminal from "../components/terminal/Terminal";
@@ -9,15 +9,19 @@ import ChatPanel from "../components/collaboration/ChatPanel";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { runCodeApi } from "../api/fileApi";
 import { getCode, saveCode } from "../api/roomApi";
+import { clearUser } from "../store/authSlice";
 
 function Room() {
   const { id }                  = useParams();
+  const navigate                = useNavigate();
+  const dispatch                = useDispatch();
   const user                    = useSelector((s) => s.auth.user);
   const username                = user?.username || user?.email || "Guest";
   const [code, setCode]         = useState("// Start coding here...");
   const [language, setLanguage] = useState("javascript");
   const [output, setOutput]     = useState("");
   const [stdin, setStdin]       = useState("");
+  const [userList, setUserList] = useState([]);
   const [messages, setMessages] = useState([]);
   const [showChat, setShowChat] = useState(false);
   const [running, setRunning]   = useState(false);
@@ -34,7 +38,7 @@ function Room() {
 
   const { send } = useWebSocket(id, username, (data) => {
     if (data.type === "code")  setCode(data.code);
-    if (data.type === "users") setUsers(Array.from(data.data || []));
+    if (data.type === "users") setUserList(Array.from(data.data || []));
     if (data.type === "chat")  setMessages((prev) => [
       ...prev, { user: data.user, text: data.text }
     ]);
@@ -62,9 +66,14 @@ function Room() {
     }
   };
 
+  // Fix: only send — WebSocket broadcasts back to all including sender
   const handleSendChat = (text) => {
-    setMessages((prev) => [...prev, { user: username, text }]);
     send({ type: "chat", user: username, text });
+  };
+
+  const handleLogout = () => {
+    dispatch(clearUser());
+    navigate("/");
   };
 
   return (
@@ -72,11 +81,42 @@ function Room() {
       <nav className="navbar">
         <div className="logo">⚡ CollabCode</div>
         <div className="room-info">📁 {decodeURIComponent(id)}</div>
-        <div className="room-info">👤 {username}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="room-info">👤 {username}</div>
+          <button
+            onClick={handleLogout}
+            style={{
+              padding: "5px 12px",
+              background: "transparent",
+              border: "1px solid #334155",
+              borderRadius: "6px",
+              color: "#94a3b8",
+              cursor: "pointer",
+              fontSize: "12px",
+              transition: "all 0.2s"
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = "#ef4444";
+              e.target.style.color = "white";
+              e.target.style.borderColor = "#ef4444";
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = "transparent";
+              e.target.style.color = "#94a3b8";
+              e.target.style.borderColor = "#334155";
+            }}
+          >
+            Logout
+          </button>
+        </div>
       </nav>
 
       <div className={showChat ? "main with-chat" : "main no-chat"}>
-        <ActiveUsers users={users} showChat={showChat} setShowChat={setShowChat} />
+        <ActiveUsers
+          users={userList}
+          showChat={showChat}
+          setShowChat={setShowChat}
+        />
 
         <EditorToolbar
           language={language}
@@ -86,11 +126,14 @@ function Room() {
         />
 
         <div className="editor">
-          <CodeEditor value={code} onChange={handleCodeChange} language={language} />
+          <CodeEditor
+            value={code}
+            onChange={handleCodeChange}
+            language={language}
+          />
         </div>
 
         <div className="output">
-          {/* STDIN INPUT */}
           <div style={{
             display: "flex", alignItems: "center", gap: "8px",
             marginBottom: "8px", paddingBottom: "8px",
@@ -102,7 +145,7 @@ function Room() {
             <input
               value={stdin}
               onChange={(e) => setStdin(e.target.value)}
-              placeholder="Enter input for your program (e.g. hello world)"
+              placeholder="Enter input for your program..."
               style={{
                 flex: 1, padding: "4px 8px", background: "#0f172a",
                 border: "1px solid #1e293b", borderRadius: "4px",
@@ -111,11 +154,12 @@ function Room() {
               }}
             />
           </div>
-          {/* OUTPUT */}
           <Terminal output={output} />
         </div>
 
-        {showChat && <ChatPanel messages={messages} onSend={handleSendChat} />}
+        {showChat && (
+          <ChatPanel messages={messages} onSend={handleSendChat} />
+        )}
       </div>
     </>
   );

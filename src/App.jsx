@@ -9,8 +9,7 @@ import "./App.css";
 
 function ProtectedRoute({ children }) {
   const user = useSelector((s) => s.auth.user);
-  const stored = localStorage.getItem("user");
-  if (!user && !stored) return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return children;
 }
 
