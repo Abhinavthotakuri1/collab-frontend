@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
+import { useSelector } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 
 function Login() {
@@ -10,6 +11,10 @@ function Login() {
   const [error, setError]           = useState("");
   const { login, register }         = useAuth();
   const navigate                    = useNavigate();
+  const user                        = useSelector((s) => s.auth.user);
+
+  // Already logged in → go to dashboard
+  if (user) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -22,7 +27,11 @@ function Login() {
       }
       navigate("/dashboard");
     } catch (err) {
-      setError(err.response?.data?.error || err.response?.data || "Something went wrong");
+      setError(
+        err.response?.data?.error ||
+        err.response?.data ||
+        "Something went wrong. Is the backend running?"
+      );
     }
   };
 
@@ -42,7 +51,7 @@ function Login() {
         background: "#020617", padding: "2.5rem", borderRadius: "12px",
         width: "340px", border: "1px solid #1e293b"
       }}>
-        <div style={{ fontSize: "22px", fontWeight: "bold", color: "#38bdf8" }}>
+        <div style={{ fontSize: "24px", fontWeight: "bold", color: "#38bdf8" }}>
           ⚡ CollabCode
         </div>
         <h2 style={{ fontSize: "18px", color: "#e2e8f0" }}>
@@ -84,10 +93,11 @@ function Login() {
           {isRegister ? "Register" : "Login"}
         </button>
 
-        <p
-          onClick={() => setIsRegister(!isRegister)}
-          style={{ textAlign: "center", fontSize: "13px", color: "#64748b", cursor: "pointer" }}
-        >
+        <p onClick={() => { setIsRegister(!isRegister); setError(""); }}
+          style={{
+            textAlign: "center", fontSize: "13px",
+            color: "#64748b", cursor: "pointer"
+          }}>
           {isRegister ? "Already have an account? Sign in" : "No account? Register"}
         </p>
       </form>

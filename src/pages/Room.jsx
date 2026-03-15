@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 import CodeEditor from "../components/editor/CodeEditor";
 import EditorToolbar from "../components/editor/EditorToolbar";
@@ -8,6 +8,7 @@ import ActiveUsers from "../components/collaboration/ActiveUsers";
 import ChatPanel from "../components/collaboration/ChatPanel";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { runCodeApi } from "../api/fileApi";
+import { getCode, saveCode } from "../api/roomApi";
 
 function Room() {
   const { id }                  = useParams();
@@ -16,27 +17,43 @@ function Room() {
   const [code, setCode]         = useState("// Start coding here...");
   const [language, setLanguage] = useState("javascript");
   const [output, setOutput]     = useState("");
-  const [users, setUsers]       = useState([username]);
+  const [stdin, setStdin]       = useState("");
   const [messages, setMessages] = useState([]);
   const [showChat, setShowChat] = useState(false);
   const [running, setRunning]   = useState(false);
+  const saveTimer               = useRef(null);
+
+  useEffect(() => {
+    if (!id) return;
+    getCode(decodeURIComponent(id))
+      .then((res) => {
+        if (res.data && res.data.trim() !== "") setCode(res.data);
+      })
+      .catch(() => {});
+  }, [id]);
 
   const { send } = useWebSocket(id, username, (data) => {
     if (data.type === "code")  setCode(data.code);
     if (data.type === "users") setUsers(Array.from(data.data || []));
-    if (data.type === "chat")  setMessages((prev) => [...prev, { user: data.user, text: data.text }]);
+    if (data.type === "chat")  setMessages((prev) => [
+      ...prev, { user: data.user, text: data.text }
+    ]);
   });
 
   const handleCodeChange = (value) => {
     setCode(value);
     send({ type: "code", code: value, user: username });
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      saveCode(decodeURIComponent(id), value).catch(() => {});
+    }, 2000);
   };
 
   const handleRun = async () => {
     setRunning(true);
     setOutput("Running...");
     try {
-      const result = await runCodeApi(code, language);
+      const result = await runCodeApi(code, language, stdin);
       setOutput(result || "(no output)");
     } catch (e) {
       setOutput("Error: " + e.message);
@@ -52,24 +69,15 @@ function Room() {
 
   return (
     <>
-      {/* NAVBAR */}
       <nav className="navbar">
         <div className="logo">⚡ CollabCode</div>
-        <div className="room-info">Room: {decodeURIComponent(id)}</div>
+        <div className="room-info">📁 {decodeURIComponent(id)}</div>
         <div className="room-info">👤 {username}</div>
       </nav>
 
-      {/* MAIN GRID */}
       <div className={showChat ? "main with-chat" : "main no-chat"}>
+        <ActiveUsers users={users} showChat={showChat} setShowChat={setShowChat} />
 
-        {/* LEFT — USERS */}
-        <ActiveUsers
-          users={users}
-          showChat={showChat}
-          setShowChat={setShowChat}
-        />
-
-        {/* TOOLBAR */}
         <EditorToolbar
           language={language}
           onLanguageChange={setLanguage}
@@ -77,25 +85,37 @@ function Room() {
           running={running}
         />
 
-        {/* EDITOR */}
         <div className="editor">
-          <CodeEditor
-            value={code}
-            onChange={handleCodeChange}
-            language={language}
-          />
+          <CodeEditor value={code} onChange={handleCodeChange} language={language} />
         </div>
 
-        {/* OUTPUT */}
         <div className="output">
+          {/* STDIN INPUT */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: "8px",
+            marginBottom: "8px", paddingBottom: "8px",
+            borderBottom: "1px solid #1e293b"
+          }}>
+            <span style={{ fontSize: "11px", color: "#64748b", whiteSpace: "nowrap" }}>
+              stdin:
+            </span>
+            <input
+              value={stdin}
+              onChange={(e) => setStdin(e.target.value)}
+              placeholder="Enter input for your program (e.g. hello world)"
+              style={{
+                flex: 1, padding: "4px 8px", background: "#0f172a",
+                border: "1px solid #1e293b", borderRadius: "4px",
+                color: "#a3e635", fontSize: "12px",
+                fontFamily: "'Cascadia Code', monospace", outline: "none"
+              }}
+            />
+          </div>
+          {/* OUTPUT */}
           <Terminal output={output} />
         </div>
 
-        {/* CHAT — only when open */}
-        {showChat && (
-          <ChatPanel messages={messages} onSend={handleSendChat} />
-        )}
-
+        {showChat && <ChatPanel messages={messages} onSend={handleSendChat} />}
       </div>
     </>
   );

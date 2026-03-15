@@ -14,6 +14,7 @@ body {
   justify-content: space-between;
   padding: 0 25px;
   border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
 }
 
 .logo {
@@ -30,25 +31,28 @@ body {
 /* MAIN GRID */
 .main.with-chat {
   display: grid;
-  grid-template-columns: 220px 1fr 260px;
+  grid-template-columns: 200px 1fr 260px;
   grid-template-rows: 50px 1fr 200px;
   height: calc(100vh - 60px);
 }
 
 .main.no-chat {
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 200px 1fr;
   grid-template-rows: 50px 1fr 200px;
   height: calc(100vh - 60px);
 }
 
 /* USERS PANEL */
 .users {
+  grid-column: 1;
   grid-row: 1 / span 3;
   background: #020617;
   border-right: 1px solid #1e293b;
-  padding: 20px;
+  padding: 16px;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 /* TOOLBAR */
@@ -75,7 +79,7 @@ body {
 .output {
   grid-column: 2;
   grid-row: 3;
-  background: #000;
+  background: #000000;
   padding: 10px 14px;
   overflow-y: auto;
   min-height: 0;
