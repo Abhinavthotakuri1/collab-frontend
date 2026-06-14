@@ -6,11 +6,15 @@ export function useWebSocket(roomId, username, onMessage) {
   useEffect(() => {
     if (!roomId || !username) return;
 
-    const url = `ws://localhost:8080/ws/editor/${roomId}?user=${encodeURIComponent(username)}`;
+    const url = `wss://collab-backend-production-8bbf.up.railway.app/ws/editor/${roomId}?user=${encodeURIComponent(
+      username
+    )}`;
+
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
-    ws.onopen = () => console.log("WebSocket connected:", url);
+    ws.onopen = () =>
+      console.log("WebSocket connected:", url);
 
     ws.onmessage = (event) => {
       try {
@@ -21,14 +25,20 @@ export function useWebSocket(roomId, username, onMessage) {
       }
     };
 
-    ws.onerror = (e) => console.error("WS error:", e);
-    ws.onclose = () => console.log("WS disconnected");
+    ws.onerror = (e) =>
+      console.error("WS error:", e);
+
+    ws.onclose = () =>
+      console.log("WS disconnected");
 
     return () => ws.close();
-  }, [roomId, username]);
+  }, [roomId, username, onMessage]);
 
   const send = useCallback((data) => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) {
+    if (
+      wsRef.current &&
+      wsRef.current.readyState === WebSocket.OPEN
+    ) {
       wsRef.current.send(JSON.stringify(data));
     }
   }, []);

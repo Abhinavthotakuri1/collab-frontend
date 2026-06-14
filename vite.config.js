@@ -3,12 +3,19 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+
   define: {
-    global: "globalThis"
+    global: "globalThis",
   },
+
   server: {
     proxy: {
-      "/api": "http://localhost:8080"
-    }
-  }
+      "/api": {
+        target:
+          "https://collab-backend-production-8bbf.up.railway.app",
+        changeOrigin: true,
+        secure: true,
+      },
+    },
+  },
 });
